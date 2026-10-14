@@ -15,6 +15,7 @@
 #include <qjsondocument.h>
 #include <qmainwindow.h>
 #include <qurl.h>
+#include <qprocess.h>
 
 #include "book.h"
 #include "input.h"
@@ -662,6 +663,11 @@ public:
     void copy_link_to_highlight(const std::string& uuid);
     // opens the document of a sioyek://highlight link and jumps to the linked highlight
     void open_highlight_link(const QUrl& url);
+    // sends `action` (e.g. "explain") with the selected text to the AI chat (AI_POPUP_COMMAND) of the current
+    // document, starting the chat if it isn't open
+    void ask_ai(const QString& action);
+    // the running AI chat of each document, by document checksum
+    std::unordered_map<std::string, QProcess*> ai_chat_processes;
     void handle_goto_highlight();
     void handle_goto_highlight_global();
     void handle_goto_toc();

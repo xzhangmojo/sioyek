@@ -2707,6 +2707,58 @@ public:
     }
 };
 
+class AskAiCommand : public Command {
+    QString action;
+public:
+    AskAiCommand(std::string name, MainWidget* w, QString action_) : Command(name, w), action(action_) {};
+
+    void perform() {
+        widget->ask_ai(action);
+    }
+};
+
+class AiExplainCommand : public AskAiCommand {
+public:
+    static inline const std::string cname = "ai_explain";
+    static inline const std::string hname = "Explain with Claude";
+    AiExplainCommand(MainWidget* w) : AskAiCommand(cname, w, "explain") {};
+};
+
+class AiTranslateCommand : public AskAiCommand {
+public:
+    static inline const std::string cname = "ai_translate";
+    static inline const std::string hname = "Translate with Claude";
+    AiTranslateCommand(MainWidget* w) : AskAiCommand(cname, w, "translate") {};
+};
+
+class AiSummarizeCommand : public AskAiCommand {
+public:
+    static inline const std::string cname = "ai_summarize";
+    static inline const std::string hname = "Summarize with Claude";
+    AiSummarizeCommand(MainWidget* w) : AskAiCommand(cname, w, "summarize") {};
+};
+
+class AiDefineCommand : public AskAiCommand {
+public:
+    static inline const std::string cname = "ai_define";
+    static inline const std::string hname = "Define with Claude";
+    AiDefineCommand(MainWidget* w) : AskAiCommand(cname, w, "define") {};
+};
+
+class AiAskCommand : public AskAiCommand {
+public:
+    static inline const std::string cname = "ai_ask";
+    static inline const std::string hname = "Ask Claude a question";
+    AiAskCommand(MainWidget* w) : AskAiCommand(cname, w, "ask") {};
+};
+
+class AiChatCommand : public AskAiCommand {
+public:
+    static inline const std::string cname = "ai_chat";
+    static inline const std::string hname = "Open the Claude chat of this document";
+    AiChatCommand(MainWidget* w) : AskAiCommand(cname, w, "chat") {};
+};
+
 class CommandPaletteCommand : public Command {
 public:
     static inline const std::string cname = "command_palette";
@@ -7357,6 +7409,12 @@ CommandManager::CommandManager(ConfigManager* config_manager) {
     register_command<CopyCommand>();
     register_command<AddHighlightAndCopyLinkCommand>();
     register_command<CopyLinkToHighlightCommand>();
+    register_command<AiExplainCommand>();
+    register_command<AiTranslateCommand>();
+    register_command<AiSummarizeCommand>();
+    register_command<AiDefineCommand>();
+    register_command<AiAskCommand>();
+    register_command<AiChatCommand>();
 #ifdef Q_OS_MACOS
     register_command<MacosLookupCommand>();
 #endif

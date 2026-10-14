@@ -72,6 +72,8 @@ std::wstring TEXT_HIGHLIGHT_URL = L"http://localhost:5000/";
 std::wstring PAPER_SEARCH_URL = L"https://search.fatcat.wiki/fatcat_release/_search?q=%{query}";
 
 std::wstring PAPER_SEARCH_URL_PATH = L"hits.hits[]._source.best_pdf_url";
+// the program that `ai_*` commands launch, see scripts/sioyek-ai
+std::wstring AI_POPUP_COMMAND = L"~/.config/sioyek/bin/sioyek-ai";
 std::wstring PAPER_SEARCH_TILE_PATH = L"hits.hits[]._source.title";
 std::wstring PAPER_SEARCH_CONTRIB_PATH = L"hits.hits[]._source.contrib_names";
 
@@ -1069,6 +1071,7 @@ ConfigManager::ConfigManager(const Path& default_path, const Path& auto_path, co
     add_string(L"shift_middle_click_search_engine", &SHIFT_MIDDLE_CLICK_SEARCH_ENGINE);
     add_string(L"text_summary_url", &TEXT_HIGHLIGHT_URL);
     add_string(L"paper_search_url", &PAPER_SEARCH_URL);
+    add_string(L"ai_popup_command", &AI_POPUP_COMMAND);
     add_string(L"papers_folder_path", &PAPERS_FOLDER_PATH);
     add_string(L"scan_path", &BOOK_SCAN_PATH);
     add_string(L"context_menu_items", &CONTEXT_MENU_ITEMS);

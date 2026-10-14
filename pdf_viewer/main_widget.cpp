@@ -70,6 +70,7 @@
 #include <qmenubar.h>
 #include <qstylehints.h>
 #include <qurlquery.h>
+#include <qdir.h>
 
 #include <mupdf/fitz.h>
 
@@ -119,6 +120,7 @@ extern float MOVE_SCREEN_PERCENTAGE;
 extern std::wstring LIBGEN_ADDRESS;
 extern std::wstring INVERSE_SEARCH_COMMAND;
 extern std::wstring PAPER_SEARCH_URL;
+extern std::wstring AI_POPUP_COMMAND;
 extern std::wstring PAPER_SEARCH_URL_PATH;
 extern std::wstring PAPER_SEARCH_TILE_PATH;
 extern std::wstring PAPER_SEARCH_CONTRIB_PATH;
@@ -6215,6 +6217,54 @@ void MainWidget::open_highlight_link(const QUrl& url) {
     invalidate_render();
     raise();
     activateWindow();
+}
+
+void MainWidget::ask_ai(const QString& action) {
+    std::wstring selected_text = get_selected_text();
+    int page = get_current_page_number();
+    if (selected_text.size() > 0) {
+        page = doc()->absolute_to_page_pos(selection_begin).page;
+    }
+
+    // each document has one chat window, requests for a document whose chat is already open are sent to it
+    std::string checksum = doc()->get_checksum();
+    QProcess* process = nullptr;
+    if (ai_chat_processes.find(checksum) != ai_chat_processes.end()) {
+        process = ai_chat_processes[checksum];
+    }
+
+    if (process == nullptr) {
+        QString program = QString::fromStdWString(AI_POPUP_COMMAND);
+        if (program.startsWith("~/")) {
+            program = QDir::homePath() + program.mid(1);
+        }
+
+        process = new QProcess(this);
+        QObject::connect(process, &QProcess::errorOccurred, [this, process, program, checksum](QProcess::ProcessError error) {
+            if (error == QProcess::FailedToStart) {
+                ai_chat_processes.erase(checksum);
+                show_error_message(("Could not start the AI chat (" + program + "), see ai_popup_command in prefs.config").toStdWString());
+                process->deleteLater();
+            }
+            });
+        QObject::connect(process, qOverload<int, QProcess::ExitStatus>(&QProcess::finished), [this, process, checksum]() {
+            ai_chat_processes.erase(checksum);
+            process->deleteLater();
+            });
+
+        process->start(program, { QString::fromStdWString(doc()->get_path()), QString::fromStdString(checksum) });
+        if (!process->waitForStarted(5000)) {
+            return;
+        }
+        ai_chat_processes[checksum] = process;
+    }
+
+    // the chat reads one json request per line from stdin
+    QJsonObject request;
+    request["action"] = action;
+    request["text"] = QString::fromStdWString(selected_text);
+    request["page"] = page;
+    process->write(QJsonDocument(request).toJson(QJsonDocument::Compact) + "\n");
 }
 
 void MainWidget::change_selected_highlight_type(char new_type) {
