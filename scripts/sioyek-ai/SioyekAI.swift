@@ -70,6 +70,8 @@ struct ChatHistory: Codable {
     var document: String
     // the claude session which has the document and the conversation, resumed for every question
     var sessionId: String?
+    // the user allowed sending this document to claude although SioLibrary marked it sensitive
+    var allowSensitive: Bool?
     var turns: [Turn] = []
 
     // where the histories, the text of long documents and the claude sessions (which belong to the working directory
@@ -418,6 +420,16 @@ final class ChatController: NSObject, NSWindowDelegate {
     let quoteLabel = NSTextField(labelWithString: "")
     let clearQuoteButton = NSButton(title: "✕", target: nil, action: nil)
     let quoteRow = NSStackView()
+    // shown instead of sending anything when SioLibrary marked the document sensitive
+    let sensitiveRow = NSStackView()
+    let sensitiveLabel = NSTextField(wrappingLabelWithString: "")
+    let sendAnywayButton = NSButton(title: "Send to Claude anyway", target: nil, action: nil)
+
+    // SioLibrary's marker for sensitive files (stored with the file, like a finder tag)
+    var isMarkedSensitive: Bool {
+        getxattr(documentPath, "local.siolibrary.sensitive", nil, 0, 0, 0) >= 0
+    }
+    var isBlocked: Bool { isMarkedSensitive && history.allowSensitive != true }
     let inputField = NSTextField()
     let sendButton = NSButton(title: "Send", target: nil, action: nil)
     let copyButton = NSButton(title: "Copy", target: nil, action: nil)
@@ -511,7 +523,21 @@ final class ChatController: NSObject, NSWindowDelegate {
         let inputRow = NSStackView(views: [inputField, sendButton, copyButton, newChatButton])
         inputRow.spacing = 8
 
-        let stack = NSStackView(views: [scrollView, statusRow, quoteRow, inputRow])
+        sensitiveLabel.stringValue = "🔒 SioLibrary marked this document as sensitive. Asking Claude sends its text to Anthropic, so nothing is sent until you allow it for this document."
+        sensitiveLabel.font = NSFont.systemFont(ofSize: 12)
+        sensitiveLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        sendAnywayButton.bezelStyle = .rounded
+        sendAnywayButton.target = self
+        sendAnywayButton.action = #selector(allowSensitive)
+        sensitiveRow.setViews([sensitiveLabel, sendAnywayButton], in: .leading)
+        sensitiveRow.spacing = 8
+        sensitiveRow.edgeInsets = NSEdgeInsets(top: 8, left: 10, bottom: 8, right: 10)
+        sensitiveRow.wantsLayer = true
+        sensitiveRow.layer?.backgroundColor = NSColor.systemOrange.withAlphaComponent(0.15).cgColor
+        sensitiveRow.layer?.cornerRadius = 6
+        sensitiveRow.isHidden = !isBlocked
+
+        let stack = NSStackView(views: [sensitiveRow, scrollView, statusRow, quoteRow, inputRow])
         stack.orientation = .vertical
         stack.alignment = .leading
         stack.spacing = 8
@@ -527,6 +553,7 @@ final class ChatController: NSObject, NSWindowDelegate {
             stack.topAnchor.constraint(equalTo: content.topAnchor),
             stack.bottomAnchor.constraint(equalTo: content.bottomAnchor),
             scrollView.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -32),
+            sensitiveRow.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -32),
             quoteRow.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -32),
             inputRow.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -32),
         ])
@@ -615,8 +642,23 @@ final class ChatController: NSObject, NSWindowDelegate {
         runNext()
     }
 
+    @objc func allowSensitive() {
+        history.allowSensitive = true
+        history.save(checksum: checksum)
+        sensitiveRow.isHidden = true
+        statusLabel.stringValue = ""
+        runNext()
+    }
+
     private func runNext() {
         guard current == nil, documentText != nil, claudePath != nil, !queue.isEmpty else { return }
+        // checked for every question, since the document may have been marked while the chat was open
+        if isBlocked {
+            sensitiveRow.isHidden = false
+            statusLabel.textColor = .secondaryLabelColor
+            statusLabel.stringValue = "Waiting: \(queue.count) question\(queue.count == 1 ? "" : "s") not sent (sensitive document)"
+            return
+        }
         let request = queue.removeFirst()
         current = request
         currentAnswer = ""
