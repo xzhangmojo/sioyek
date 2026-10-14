@@ -33,6 +33,7 @@
 #include <qjsonarray.h>
 #include <quuid.h>
 #include <qjsondocument.h>
+#include <qmimedata.h>
 #include "path.h"
 
 #ifdef SIOYEK_ANDROID
@@ -276,6 +277,25 @@ void copy_to_clipboard(const std::wstring& text, bool selection) {
             clipboard->setText(qtext, QClipboard::Selection);
         }
     }
+}
+
+#ifdef Q_OS_MACOS
+extern "C" void copyRichLinkToPasteboard(const char* text, const char* url, const char* html);
+#endif
+
+void copy_link_to_clipboard(const std::wstring& text, const QString& url) {
+    QString qtext = QString::fromStdWString(text).simplified();
+    QString html = "<a href=\"" + url.toHtmlEscaped() + "\">" + qtext.toHtmlEscaped() + "</a>";
+
+#ifdef Q_OS_MACOS
+    // Qt doesn't put RTF on the pasteboard, which some macOS apps (e.g. Apple Notes) need to paste a hyperlink
+    copyRichLinkToPasteboard(qtext.toUtf8().constData(), url.toUtf8().constData(), html.toUtf8().constData());
+#else
+    QMimeData* mime_data = new QMimeData();
+    mime_data->setHtml(html);
+    mime_data->setText(url);
+    QGuiApplication::clipboard()->setMimeData(mime_data);
+#endif
 }
 
 #define OPEN_KEY(parent, name, ptr) \

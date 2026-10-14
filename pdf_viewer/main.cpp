@@ -48,6 +48,7 @@
 #include <qprocess.h>
 #include <qstandardpaths.h>
 #include <qcommandlineparser.h>
+#include <qurlquery.h>
 #include <qdir.h>
 #include <qsurfaceformat.h>
 
@@ -435,6 +436,20 @@ void invalidate_render() {
     }
 }
 
+MainWidget* handle_highlight_link(const QUrl& url) {
+    // prefer a window which already has the linked document open
+    std::string checksum = QUrlQuery(url).queryItemValue("doc").toStdString();
+    MainWidget* target_window = windows[0];
+    std::optional<std::wstring> path = target_window->checksummer->get_path(checksum);
+    if (path) {
+        if (MainWidget* window = get_window_with_opened_file_path(path.value())) {
+            target_window = window;
+        }
+    }
+    target_window->open_highlight_link(url);
+    return target_window;
+}
+
 MainWidget* handle_args(const QStringList& arguments, QLocalSocket* origin=nullptr) {
     std::optional<int> page = -1;
     std::optional<float> x_loc, y_loc;
@@ -457,6 +472,10 @@ MainWidget* handle_args(const QStringList& arguments, QLocalSocket* origin=nullp
     std::wstring pdf_file_name = L"";
 
     if (parser->positionalArguments().size() > 0) {
+        QUrl url(parser->positionalArguments().at(0));
+        if (url.scheme() == "sioyek" && url.host() == "highlight") {
+            return handle_highlight_link(url);
+        }
         pdf_file_name = parser->positionalArguments().at(0).toStdWString();
     }
     else {
@@ -939,6 +958,9 @@ int main(int argc, char* args[]) {
     // load input file from `QFileOpenEvent` for macOS drag and drop & "open with"
     QObject::connect(&app, &OpenWithApplication::file_ready, [&main_widget](const QString& file_name) {
         handle_args(QStringList() << QCoreApplication::applicationFilePath() << file_name);
+        });
+    QObject::connect(&app, &OpenWithApplication::url_ready, [](const QUrl& url) {
+        handle_args(QStringList() << QCoreApplication::applicationFilePath() << url.toString(QUrl::FullyEncoded));
         });
 
     QCoreApplication::processEvents();

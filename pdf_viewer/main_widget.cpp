@@ -69,6 +69,7 @@
 #include <qtextdocumentfragment.h>
 #include <qmenubar.h>
 #include <qstylehints.h>
+#include <qurlquery.h>
 
 #include <mupdf/fitz.h>
 
@@ -6150,6 +6151,70 @@ std::wstring MainWidget::handle_add_highlight(char symbol) {
         change_selected_highlight_type(symbol);
         return utf8_decode(doc()->get_highlight_index_uuid(selected_highlight_index));
     }
+}
+
+void MainWidget::copy_link_to_highlight(const std::string& uuid) {
+    int index = doc()->get_highlight_index_with_uuid(uuid);
+    if (index == -1) {
+        show_error_message(L"No highlight is selected");
+        return;
+    }
+
+    Highlight highlight = main_document_view->get_highlight_with_index(index);
+    int page = doc()->absolute_to_page_pos(highlight.selection_begin).page;
+
+    // the document is identified by its checksum (rather than its path) so links keep working if the file is moved
+    QUrlQuery query;
+    query.addQueryItem("doc", QString::fromStdString(doc()->get_checksum()));
+    query.addQueryItem("id", QString::fromStdString(uuid));
+    query.addQueryItem("page", QString::number(page + 1));
+
+    QUrl url;
+    url.setScheme("sioyek");
+    url.setHost("highlight");
+    url.setQuery(query);
+
+    copy_link_to_clipboard(highlight.description, url.toString(QUrl::FullyEncoded));
+    set_status_message(L"Copied link to highlight");
+}
+
+void MainWidget::open_highlight_link(const QUrl& url) {
+    QUrlQuery query(url);
+    std::string checksum = query.queryItemValue("doc").toStdString();
+    std::string uuid = query.queryItemValue("id").toStdString();
+    bool has_page = false;
+    int page = query.queryItemValue("page").toInt(&has_page) - 1;
+
+    std::optional<std::wstring> path = checksummer->get_path(checksum);
+    if (!path) {
+        show_error_message(L"Could not find the document of this link. If the file was moved, open it in sioyek once and the link will work again.");
+        return;
+    }
+
+    if (doc()) {
+        push_state();
+    }
+    if (!doc() || (doc()->get_checksum() != checksum)) {
+        open_document(path.value());
+    }
+    if (!doc()) {
+        return;
+    }
+
+    int index = doc()->get_highlight_index_with_uuid(uuid);
+    if (index != -1) {
+        Highlight highlight = main_document_view->get_highlight_with_index(index);
+        main_document_view->set_offset_y(highlight.selection_begin.y);
+        set_selected_highlight_index(index);
+    }
+    else if (has_page && (page >= 0)) {
+        // the highlight was deleted, go to its page instead
+        main_document_view->goto_page(page);
+    }
+
+    invalidate_render();
+    raise();
+    activateWindow();
 }
 
 void MainWidget::change_selected_highlight_type(char new_type) {

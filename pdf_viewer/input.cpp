@@ -2674,6 +2674,39 @@ public:
     }
 };
 
+class AddHighlightAndCopyLinkCommand : public SymbolCommand {
+public:
+    static inline const std::string cname = "add_highlight_and_copy_link";
+    static inline const std::string hname = "Highlight and copy link";
+    AddHighlightAndCopyLinkCommand(MainWidget* w) : SymbolCommand(cname, w) {};
+
+    void perform() {
+        if (widget->main_document_view->selected_character_rects.size() > 0) {
+            std::string uuid = utf8_encode(widget->handle_add_highlight(symbol));
+            widget->copy_link_to_highlight(uuid);
+        }
+        else if (widget->selected_highlight_index != -1) {
+            widget->copy_link_to_highlight(widget->doc()->get_highlight_index_uuid(widget->selected_highlight_index));
+        }
+    }
+};
+
+class CopyLinkToHighlightCommand : public Command {
+public:
+    static inline const std::string cname = "copy_link_to_highlight";
+    static inline const std::string hname = "Copy link to highlight";
+    CopyLinkToHighlightCommand(MainWidget* w) : Command(cname, w) {};
+
+    void perform() {
+        if (widget->selected_highlight_index != -1) {
+            widget->copy_link_to_highlight(widget->doc()->get_highlight_index_uuid(widget->selected_highlight_index));
+        }
+        else {
+            show_error_message(L"No highlight is selected");
+        }
+    }
+};
+
 class CommandPaletteCommand : public Command {
 public:
     static inline const std::string cname = "command_palette";
@@ -7322,6 +7355,8 @@ CommandManager::CommandManager(ConfigManager* config_manager) {
     register_command<OpenDocumentEmbeddedCommand>();
     register_command<OpenDocumentEmbeddedFromCurrentPathCommand>();
     register_command<CopyCommand>();
+    register_command<AddHighlightAndCopyLinkCommand>();
+    register_command<CopyLinkToHighlightCommand>();
 #ifdef Q_OS_MACOS
     register_command<MacosLookupCommand>();
 #endif

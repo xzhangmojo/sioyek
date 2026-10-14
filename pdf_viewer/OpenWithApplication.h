@@ -14,6 +14,7 @@ public:
     }
 signals:
     void file_ready(const QString& file_name);
+    void url_ready(const QUrl& url);
 
 protected:
     bool event(QEvent* event) override;

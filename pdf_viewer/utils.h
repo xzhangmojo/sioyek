@@ -58,6 +58,8 @@ int argminf(const std::vector<T>& collection, std::function<float(T)> f) {
 }
 void rect_to_quad(fz_rect rect, float quad[8]);
 void copy_to_clipboard(const std::wstring& text, bool selection = false);
+// copies a hyperlink with title `text` pointing to `url` (pasted as a link in rich text editors and as `url` in plain text editors)
+void copy_link_to_clipboard(const std::wstring& text, const QString& url);
 void install_app(const char* argv0);
 int get_f_key(std::wstring name);
 void show_error_message(const std::wstring& error_message);

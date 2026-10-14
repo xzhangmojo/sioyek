@@ -14,6 +14,7 @@
 #include <qquickwidget.h>
 #include <qjsondocument.h>
 #include <qmainwindow.h>
+#include <qurl.h>
 
 #include "book.h"
 #include "input.h"
@@ -657,6 +658,10 @@ public:
     void handle_show_marks();
     void handle_goto_bookmark_global();
     std::wstring handle_add_highlight(char symbol);
+    // copies a sioyek://highlight link to the highlight with `uuid` in the current document
+    void copy_link_to_highlight(const std::string& uuid);
+    // opens the document of a sioyek://highlight link and jumps to the linked highlight
+    void open_highlight_link(const QUrl& url);
     void handle_goto_highlight();
     void handle_goto_highlight_global();
     void handle_goto_toc();

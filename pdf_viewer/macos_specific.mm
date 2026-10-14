@@ -14,6 +14,32 @@ extern "C" void showLookupForString(WId winId, const char* text, double x, doubl
                                     atPoint:point];
 }
 
+// writes a link titled `text` which points to `url` to the pasteboard as rich text (RTF and HTML) so that
+// apps like Apple Notes paste it as a hyperlink, with `url` as the plain text fallback
+extern "C" void copyRichLinkToPasteboard(const char* text, const char* url, const char* html) {
+    if (text == nullptr || url == nullptr || html == nullptr) return;
+
+    NSString* nsText = [NSString stringWithUTF8String:text];
+    NSString* nsUrl = [NSString stringWithUTF8String:url];
+    NSString* nsHtml = [NSString stringWithUTF8String:html];
+    NSURL* link = [NSURL URLWithString:nsUrl];
+    if (nsText == nil || nsUrl == nil || nsHtml == nil || link == nil) return;
+
+    NSAttributedString* attributed = [[NSAttributedString alloc] initWithString:nsText
+                                                                     attributes:@{NSLinkAttributeName: link}];
+    NSData* rtf = [attributed dataFromRange:NSMakeRange(0, attributed.length)
+                         documentAttributes:@{NSDocumentTypeDocumentAttribute: NSRTFTextDocumentType}
+                                      error:nil];
+
+    NSPasteboard* pasteboard = [NSPasteboard generalPasteboard];
+    [pasteboard clearContents];
+    if (rtf != nil) {
+        [pasteboard setData:rtf forType:NSPasteboardTypeRTF];
+    }
+    [pasteboard setString:nsHtml forType:NSPasteboardTypeHTML];
+    [pasteboard setString:nsUrl forType:NSPasteboardTypeString];
+}
+
 extern "C" void changeTitlebarColor(WId winId, double red, double green, double blue, double alpha){
     if (winId == 0) return;
     NSView* view = (NSView*)winId;
