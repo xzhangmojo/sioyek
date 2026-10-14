@@ -33,6 +33,11 @@ private:
     bool create_document_hash_table();
     bool create_highlights_table();
 public:
+    // used by DocumentIdentifier, which keeps its own tables in these databases
+    sqlite3* get_local_db() { return local_db; }
+    sqlite3* get_global_db() { return global_db; }
+    std::recursive_mutex& get_mutex() { return db_mutex; }
+
     bool open(const std::wstring& local_db_file_path, const std::wstring& global_db_file_path);
     bool select_opened_book(const std::string& book_path, std::vector<OpenedBookState>& out_result);
     bool insert_mark(const std::string& checksum,

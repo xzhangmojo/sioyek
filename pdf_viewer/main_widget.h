@@ -20,6 +20,7 @@
 #include "book.h"
 #include "input.h"
 #include "path.h"
+#include "document_identity.h"
 
 extern float VERTICAL_MOVE_AMOUNT;
 extern float HORIZONTAL_MOVE_AMOUNT;
@@ -663,6 +664,10 @@ public:
     void copy_link_to_highlight(const std::string& uuid);
     // opens the document of a sioyek://highlight link and jumps to the linked highlight
     void open_highlight_link(const QUrl& url);
+    // the document a sioyek://highlight link points to
+    static std::optional<DocumentIdentity> get_highlight_link_identity(const QUrl& url);
+    // makes sure the current document's file is recognized after it is modified if it has annotations
+    void protect_document_if_needed();
     // sends `action` (e.g. "explain") with the selected text to the AI chat (AI_POPUP_COMMAND) of the current
     // document, starting the chat if it isn't open
     void ask_ai(const QString& action);

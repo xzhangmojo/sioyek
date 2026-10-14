@@ -1,4 +1,5 @@
 #include "document.h"
+#include "document_identity.h"
 #include <algorithm>
 #include <thread>
 #include <cmath>
@@ -1113,6 +1114,10 @@ void Document::load_page_dimensions(bool force_load_now) {
             //			fz_document* doc_ = fz_open_document(context_, utf8_encode(file_name).c_str());
             fz_document* doc_ = open_document_with_file_name(context_, file_name);
             //fz_layout_document(context_, doc, 600, 800, 20);
+            // recognize moved or modified files before their annotations are loaded
+            if (DocumentIdentifier* identifier = get_document_identifier()) {
+                identifier->identify_file(file_name, context_, doc_);
+            }
             load_document_metadata_from_db();
 
             float acc_height_ = 0.0f;

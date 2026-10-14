@@ -82,6 +82,8 @@ std::wstring PERIODIC_COMMANDS = L"";
 std::wstring MIDDLE_CLICK_SEARCH_ENGINE = L"s";
 std::wstring SHIFT_MIDDLE_CLICK_SEARCH_ENGINE = L"l";
 std::wstring PAPERS_FOLDER_PATH = L"";
+// folders searched for documents whose files were moved, separated by ;
+std::wstring LIBRARY_FOLDERS = L"";
 #ifndef SIOYEK_MOBILE
 std::wstring STATUS_BAR_FORMAT = L"[ %{current_page} / %{num_pages} ]%{chapter_name}%{search_results}%{search_progress}%{link_status}%{waiting_for_symbol}%{indexing}%{preview_index}%{synctex}%{drag}%{presentation}%{visual_scroll}%{locked_scroll}%{highlight}%{freehand_drawing}%{closest_bookmark}%{close_portal}%{rect_select}%{custom_message}%{download}";
 std::wstring RIGHT_STATUS_BAR_FORMAT = L"";
@@ -1073,6 +1075,7 @@ ConfigManager::ConfigManager(const Path& default_path, const Path& auto_path, co
     add_string(L"paper_search_url", &PAPER_SEARCH_URL);
     add_string(L"ai_popup_command", &AI_POPUP_COMMAND);
     add_string(L"papers_folder_path", &PAPERS_FOLDER_PATH);
+    add_string(L"library_folders", &LIBRARY_FOLDERS);
     add_string(L"scan_path", &BOOK_SCAN_PATH);
     add_string(L"context_menu_items", &CONTEXT_MENU_ITEMS);
     add_string(L"context_menu_items_for_links", &CONTEXT_MENU_ITEMS_FOR_LINKS);

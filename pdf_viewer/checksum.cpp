@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <qfile.h>
 
 #include "checksum.h"
@@ -39,6 +40,7 @@ CachedChecksummer::CachedChecksummer(const std::vector<std::pair<std::wstring, s
 }
 
 std::optional<std::string> CachedChecksummer::get_checksum_fast(std::wstring file_path) {
+    std::lock_guard<std::recursive_mutex> lock(mutex);
     // return the checksum only if it is alreay precomputed in cache
     if (cached_checksums.find(file_path) != cached_checksums.end()) {
         return cached_checksums[file_path];
@@ -47,6 +49,7 @@ std::optional<std::string> CachedChecksummer::get_checksum_fast(std::wstring fil
 }
 
 std::string CachedChecksummer::get_checksum(std::wstring file_path) {
+    std::lock_guard<std::recursive_mutex> lock(mutex);
 
     auto cached_checksum = get_checksum_fast(file_path);
 
@@ -60,6 +63,7 @@ std::string CachedChecksummer::get_checksum(std::wstring file_path) {
 }
 
 std::optional<std::wstring> CachedChecksummer::get_path(std::string checksum) {
+    std::lock_guard<std::recursive_mutex> lock(mutex);
     const std::vector<std::wstring> paths = cached_paths[checksum];
 
     for (const auto& path_string : paths) {
@@ -71,8 +75,22 @@ std::optional<std::wstring> CachedChecksummer::get_path(std::string checksum) {
 }
 
 int CachedChecksummer::num_docs_with_checksum(std::string checksum) {
+    std::lock_guard<std::recursive_mutex> lock(mutex);
     if (cached_paths.find(checksum) != cached_paths.end()) {
         return cached_paths[checksum].size();
     }
     return 0;
+}
+void CachedChecksummer::set_checksum(std::wstring file_path, std::string checksum) {
+    std::lock_guard<std::recursive_mutex> lock(mutex);
+    auto old = cached_checksums.find(file_path);
+    if (old != cached_checksums.end()) {
+        std::vector<std::wstring>& old_paths = cached_paths[old->second];
+        old_paths.erase(std::remove(old_paths.begin(), old_paths.end(), file_path), old_paths.end());
+    }
+    cached_checksums[file_path] = checksum;
+    std::vector<std::wstring>& paths = cached_paths[checksum];
+    if (std::find(paths.begin(), paths.end(), file_path) == paths.end()) {
+        paths.push_back(file_path);
+    }
 }

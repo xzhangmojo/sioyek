@@ -71,6 +71,7 @@
 #include "RunGuard.h"
 #include "checksum.h"
 #include "OpenWithApplication.h"
+#include "document_identity.h"
 #include "new_file_checker.h"
 
 #define FTS_FUZZY_MATCH_IMPLEMENTATION
@@ -438,12 +439,12 @@ void invalidate_render() {
 
 MainWidget* handle_highlight_link(const QUrl& url) {
     // prefer a window which already has the linked document open
-    std::string checksum = QUrlQuery(url).queryItemValue("doc").toStdString();
     MainWidget* target_window = windows[0];
-    std::optional<std::wstring> path = target_window->checksummer->get_path(checksum);
-    if (path) {
-        if (MainWidget* window = get_window_with_opened_file_path(path.value())) {
-            target_window = window;
+    if (std::optional<DocumentIdentity> identity = MainWidget::get_highlight_link_identity(url)) {
+        for (MainWidget* window : windows) {
+            if (window->doc() && window->doc()->get_checksum() == identity->key) {
+                target_window = window;
+            }
         }
     }
     target_window->open_highlight_link(url);
@@ -891,6 +892,8 @@ int main(int argc, char* args[]) {
     db_manager.get_prev_path_hash_pairs(prev_path_hash_pairs);
 
     CachedChecksummer checksummer(&prev_path_hash_pairs);
+    DocumentIdentifier document_identifier(&db_manager, &checksummer);
+    set_document_identifier(&document_identifier);
 
     DocumentManager document_manager(mupdf_context, &db_manager, &checksummer);
 

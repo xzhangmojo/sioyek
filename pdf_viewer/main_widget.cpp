@@ -71,6 +71,9 @@
 #include <qstylehints.h>
 #include <qurlquery.h>
 #include <qdir.h>
+#include <qfiledialog.h>
+#include <qmessagebox.h>
+#include <qfileinfo.h>
 
 #include <mupdf/fitz.h>
 
@@ -1245,6 +1248,7 @@ MainWidget::MainWidget(fz_context* mupdf_context,
                 doc()->reload_annotations_on_new_checksum();
                 validate_render();
             }
+            protect_document_if_needed();
             if (main_document_view->needs_refill && doc()->can_use_highlights()){
                 main_document_view->fill_cached_virtual_rects(true);
             }
@@ -6165,11 +6169,14 @@ void MainWidget::copy_link_to_highlight(const std::string& uuid) {
     Highlight highlight = main_document_view->get_highlight_with_index(index);
     int page = doc()->absolute_to_page_pos(highlight.selection_begin).page;
 
-    // the document is identified by its checksum (rather than its path) so links keep working if the file is moved
+    // links name the document (rather than its path) so they keep working when the file is moved or modified
     QUrlQuery query;
     query.addQueryItem("doc", QString::fromStdString(doc()->get_checksum()));
     query.addQueryItem("id", QString::fromStdString(uuid));
     query.addQueryItem("page", QString::number(page + 1));
+    if (std::optional<DocumentIdentity> identity = get_document_identifier()->get_or_create_for_key(doc()->get_checksum())) {
+        query.addQueryItem("docid", QString::fromStdString(identity->uuid));
+    }
 
     QUrl url;
     url.setScheme("sioyek");
@@ -6180,43 +6187,104 @@ void MainWidget::copy_link_to_highlight(const std::string& uuid) {
     set_status_message(L"Copied link to highlight");
 }
 
+std::optional<DocumentIdentity> MainWidget::get_highlight_link_identity(const QUrl& url) {
+    QUrlQuery query(url);
+    std::string document_id = query.queryItemValue("docid").toStdString();
+    std::string checksum = query.queryItemValue("doc").toStdString();
+    std::string highlight_id = query.queryItemValue("id", QUrl::FullyDecoded).toStdString();
+
+    DocumentIdentifier* identifier = get_document_identifier();
+    std::optional<DocumentIdentity> identity;
+    if (!document_id.empty()) identity = identifier->get_by_uuid(document_id);
+    if (!identity && !checksum.empty()) identity = identifier->get_by_checksum(checksum);
+    if (!identity && !highlight_id.empty()) identity = identifier->get_by_annotation_uuid(highlight_id);
+    if (!identity && !checksum.empty()) identity = identifier->get_or_create_for_key(checksum);
+    return identity;
+}
+
 void MainWidget::open_highlight_link(const QUrl& url) {
     QUrlQuery query(url);
-    std::string checksum = query.queryItemValue("doc").toStdString();
-    std::string uuid = query.queryItemValue("id").toStdString();
+    std::string highlight_id = query.queryItemValue("id", QUrl::FullyDecoded).toStdString();
     bool has_page = false;
     int page = query.queryItemValue("page").toInt(&has_page) - 1;
 
-    std::optional<std::wstring> path = checksummer->get_path(checksum);
+    std::optional<DocumentIdentity> identity = get_highlight_link_identity(url);
+    if (!identity) {
+        show_error_message(L"This link points to a document which sioyek doesn't know.");
+        return;
+    }
+
+    std::optional<std::wstring> path;
+    if (doc() && doc()->get_checksum() == identity->key) {
+        path = doc()->get_path();
+    }
+    else {
+        QString name = QString::fromStdWString(identity->title.empty() ? identity->file_name : identity->title);
+        auto ask_user = [this, name]() -> std::optional<std::wstring> {
+            QString picked = QFileDialog::getOpenFileName(this, "Where is \"" + name + "\"?", QDir::homePath(), "PDF files (*.pdf)");
+            if (picked.isEmpty()) return {};
+            return picked.toStdWString();
+        };
+        auto confirm_mismatch = [this, name](const std::wstring& picked) {
+            return QMessageBox::question(this, "Different document",
+                QString("%1 doesn't look like \"%2\". Use it anyway?").arg(QFileInfo(QString::fromStdWString(picked)).fileName(), name))
+                == QMessageBox::Yes;
+        };
+        path = get_document_identifier()->find_file(identity.value(), mupdf_context, ask_user, confirm_mismatch);
+    }
     if (!path) {
-        show_error_message(L"Could not find the document of this link. If the file was moved, open it in sioyek once and the link will work again.");
         return;
     }
 
     if (doc()) {
         push_state();
     }
-    if (!doc() || (doc()->get_checksum() != checksum)) {
+    if (!doc() || (doc()->get_path() != path.value())) {
         open_document(path.value());
     }
     if (!doc()) {
         return;
     }
-
-    int index = doc()->get_highlight_index_with_uuid(uuid);
-    if (index != -1) {
-        Highlight highlight = main_document_view->get_highlight_with_index(index);
-        main_document_view->set_offset_y(highlight.selection_begin.y);
-        set_selected_highlight_index(index);
-    }
-    else if (has_page && (page >= 0)) {
-        // the highlight was deleted, go to its page instead
-        main_document_view->goto_page(page);
-    }
-
-    invalidate_render();
     raise();
     activateWindow();
+
+    // the annotations of a document which was just opened are loaded in the background
+    auto jump = std::make_shared<std::function<void(int)>>();
+    *jump = [this, jump, highlight_id, has_page, page](int attempts_left) {
+        int index = doc() ? doc()->get_highlight_index_with_uuid(highlight_id) : -1;
+        if (index != -1) {
+            Highlight highlight = main_document_view->get_highlight_with_index(index);
+            main_document_view->set_offset_y(highlight.selection_begin.y);
+            set_selected_highlight_index(index);
+        }
+        else if (attempts_left > 0) {
+            QTimer::singleShot(100, this, [jump, attempts_left]() { (*jump)(attempts_left - 1); });
+            return;
+        }
+        else if (has_page && (page >= 0)) {
+            // the highlight was deleted, go to its page instead
+            main_document_view->goto_page(page);
+        }
+        invalidate_render();
+    };
+    (*jump)(30);
+}
+
+void MainWidget::protect_document_if_needed() {
+    // only checks the document's checksum if it is already known, so this never computes one
+    std::optional<std::string> key = doc()->get_checksum_fast();
+    DocumentIdentifier* identifier = get_document_identifier();
+    if (!key || identifier->is_protected(key.value())) {
+        return;
+    }
+
+    bool has_annotations = doc()->get_highlights().size() > 0 || doc()->get_bookmarks().size() > 0 ||
+        doc()->get_portals().size() > 0;
+    QString chat_path = QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) +
+        "/sioyek/ai_chats/" + QString::fromStdString(key.value()) + ".json";
+    if (has_annotations || QFile::exists(chat_path)) {
+        identifier->protect_document(doc()->get_path(), key.value(), mupdf_context);
+    }
 }
 
 void MainWidget::ask_ai(const QString& action) {
