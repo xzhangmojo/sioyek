@@ -13,7 +13,7 @@
 // text), chat (just show the chat). the optional command line action is handled like a first request (for testing).
 //
 // optional settings are read from ~/.config/sioyek/sioyek-ai.conf, one `key=value` per line:
-//   model=sonnet                  model passed to `claude --model`
+//   model=sonnet                  model passed to `claude --model` (default sonnet; opus for harder documents)
 //   translate_to=English          default target language of the translate action
 //   reply_language=English        language of the replies (default: the language of the question)
 //   max_inline_chars=300000       documents with more text are searched by claude instead of being included
@@ -25,7 +25,7 @@ import PDFKit
 // MARK: - settings
 
 struct Settings {
-    var model: String?
+    var model: String? = "sonnet"
     var translateTo = "English"
     var replyLanguage: String?
     var maxInlineChars = 300_000
