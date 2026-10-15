@@ -169,6 +169,9 @@ private:
     void clear_toc_node(TocNode* node);
     int find_highlight_index_with_uuid(const std::string& uuid);
 public:
+    // the real page sizes are known (until then all pages are assumed to be the size of the middle one)
+    bool are_page_dimensions_loaded() const { return are_highlights_loaded; }
+
     fz_document* doc = nullptr;
     std::wstring detected_paper_name = L"";
 

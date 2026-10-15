@@ -5261,13 +5261,24 @@ static std::vector<std::wstring> passage_words(const std::wstring& text) {
 
 // marks the lines of `page` which contain `text` (e.g. the passage a search found) and scrolls to them, without
 // changing the document; escape removes the mark
-void MainWidget::focus_passage(int page, const std::wstring& text) {
+void MainWidget::focus_passage(int page, const std::wstring& text, int attempt) {
     if (doc() == nullptr || page < 0 || page >= doc()->num_pages()) {
         return;
     }
+    // a document which was just opened has estimated page sizes for a moment; positions computed with them are off
+    // once the real sizes are loaded, so this waits for them (for up to 5 seconds)
+    if (!doc()->are_page_dimensions_loaded() && attempt < 100) {
+        Document* document = doc();
+        QTimer::singleShot(50, this, [this, document, page, text, attempt]() {
+            if (doc() == document) focus_passage(page, text, attempt + 1);
+        });
+        return;
+    }
 
+    // asking for the lines' character rects computes the lines again instead of using ones cached with estimated sizes
     std::vector<std::wstring> line_texts;
-    std::vector<AbsoluteRect> line_rects = doc()->get_page_lines(page, &line_texts);
+    std::vector<std::vector<PagelessDocumentRect>> line_char_rects;
+    std::vector<AbsoluteRect> line_rects = doc()->get_page_lines(page, &line_texts, &line_char_rects);
     std::vector<std::wstring> wanted_list = passage_words(text);
     std::set<std::wstring> wanted(wanted_list.begin(), wanted_list.end());
 
