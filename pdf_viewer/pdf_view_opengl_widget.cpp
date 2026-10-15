@@ -805,6 +805,7 @@ void PdfViewOpenGLWidget::cancel_search() {
 void PdfViewOpenGLWidget::handle_escape() {
     cancel_search();
     synctex_highlights.clear();
+    passage_highlights.clear();
     if (!SHOULD_HIGHLIGHT_LINKS) {
         should_highlight_links = false;
     }
@@ -1582,6 +1583,15 @@ void PdfViewOpenGLWidget::my_render(QPainter* painter) {
         }
     }
 
+    if (passage_highlights.size() > 0 && passage_highlight_document == doc()) {
+        std::array<float, 3> passage_highlight_color = cc3(DEFAULT_SEARCH_HIGHLIGHT_COLOR);
+        glUniform3fv(shared_gl_objects.highlight_color_uniform_location, 1, &passage_highlight_color[0]);
+        glUniform1f(shared_gl_objects.highlight_opacity_uniform_location, 0.3f);
+        for (auto rect : passage_highlights) {
+            render_highlight_absolute(shared_gl_objects.highlight_program, rect, HRF_FILL);
+        }
+    }
+
 
 
     if (document_view->should_show_text_selection_marker) {
@@ -2028,6 +2038,11 @@ void PdfViewOpenGLWidget::set_dark_mode(bool mode) {
 
 void PdfViewOpenGLWidget::toggle_dark_mode() {
     set_dark_mode(!(this->color_mode == ColorPalette::Dark));
+}
+
+void PdfViewOpenGLWidget::set_passage_highlights(std::vector<AbsoluteRect> highlights) {
+    passage_highlights = std::move(highlights);
+    passage_highlight_document = doc();
 }
 
 void PdfViewOpenGLWidget::set_synctex_highlights(std::vector<DocumentRect> highlights) {

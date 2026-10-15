@@ -1964,6 +1964,12 @@ QCommandLineParser* get_command_line_parser() {
     QCommandLineOption focus_page_option("focus-text-page", "Specifies the page which is used for focus-text", "focus-text-page");
     parser->addOption(focus_page_option);
 
+    QCommandLineOption focus_passage_option("focus-passage", "Mark the lines which contain <text> (until escape) and scroll to them.", "focus-passage");
+    parser->addOption(focus_passage_option);
+
+    QCommandLineOption focus_passage_page_option("focus-passage-page", "The page (starting from 0) of focus-passage", "focus-passage-page");
+    parser->addOption(focus_passage_page_option);
+
 
     QCommandLineOption inverse_search_option("inverse-search", "The command to execute when performing inverse search.\
  In <command>, %1 is filled with the file name and %2 is filled with the line number.", "command");

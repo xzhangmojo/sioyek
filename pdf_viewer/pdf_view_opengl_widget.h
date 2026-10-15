@@ -221,6 +221,9 @@ public:
 
     std::vector<DocumentRect> word_rects;
     std::vector<DocumentRect> synctex_highlights;
+    // a passage marked for the user (e.g. what a search found), until escape; not saved
+    std::vector<AbsoluteRect> passage_highlights;
+    Document* passage_highlight_document = nullptr;
     QTime synctex_highlight_time;
     std::vector<MarkedDataRect> marked_data_rects;
 
@@ -257,6 +260,7 @@ public:
     void set_custom_color_mode(bool mode);
     void toggle_custom_color_mode();
     void set_synctex_highlights(std::vector<DocumentRect> highlights);
+    void set_passage_highlights(std::vector<AbsoluteRect> highlights);
     bool should_show_synxtex_highlights();
     bool has_synctex_timed_out();
     void on_document_view_reset();

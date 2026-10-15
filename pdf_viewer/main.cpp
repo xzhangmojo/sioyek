@@ -670,6 +670,12 @@ MainWidget* handle_args(const QStringList& arguments, QLocalSocket* origin=nullp
         target_window->focus_text(page, text.toStdWString());
     }
 
+    if (parser->isSet("focus-passage")) {
+        QString text = parser->value("focus-passage");
+        int page = parser->value("focus-passage-page").toInt();
+        target_window->focus_passage(page, text.toStdWString());
+    }
+
 
     invalidate_render();
 

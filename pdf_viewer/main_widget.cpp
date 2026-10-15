@@ -5234,6 +5234,90 @@ void MainWidget::focus_text(int page, const std::wstring& text) {
     }
 }
 
+// words of a text for matching it with a page's lines: lowercase letters and digits, each chinese/japanese character
+// on its own; short latin words are left out since nearly every line has them
+static std::vector<std::wstring> passage_words(const std::wstring& text) {
+    std::vector<std::wstring> words;
+    std::wstring word;
+    auto flush = [&]() {
+        if (word.size() >= 3) words.push_back(word);
+        word.clear();
+    };
+    for (wchar_t c : text) {
+        if (c >= 0x2E80) {
+            flush();
+            words.push_back(std::wstring(1, c));
+        }
+        else if (iswalnum(c)) {
+            word.push_back(towlower(c));
+        }
+        else {
+            flush();
+        }
+    }
+    flush();
+    return words;
+}
+
+// marks the lines of `page` which contain `text` (e.g. the passage a search found) and scrolls to them, without
+// changing the document; escape removes the mark
+void MainWidget::focus_passage(int page, const std::wstring& text) {
+    if (doc() == nullptr || page < 0 || page >= doc()->num_pages()) {
+        return;
+    }
+
+    std::vector<std::wstring> line_texts;
+    std::vector<AbsoluteRect> line_rects = doc()->get_page_lines(page, &line_texts);
+    std::vector<std::wstring> wanted_list = passage_words(text);
+    std::set<std::wstring> wanted(wanted_list.begin(), wanted_list.end());
+
+    // a line is part of the passage when (nearly) all of its words are in it
+    std::vector<int> matched(line_texts.size(), 0);
+    std::vector<bool> in_passage(line_texts.size(), false);
+    for (int i = 0; i < line_texts.size(); i++) {
+        std::vector<std::wstring> words = passage_words(line_texts[i]);
+        int found = 0;
+        for (auto& w : words) {
+            if (wanted.find(w) != wanted.end()) found++;
+        }
+        matched[i] = found;
+        in_passage[i] = words.size() > 0 && (words.size() <= 2 ? found == words.size() : found >= 0.6f * words.size());
+    }
+
+    // the run of such lines with the most matching words (a line in between which doesn't match is allowed)
+    int best_begin = -1, best_end = -1, best_score = 0;
+    for (int begin = 0; begin < in_passage.size(); begin++) {
+        if (!in_passage[begin]) continue;
+        int score = 0, end = begin, gap = 0;
+        for (int i = begin; i < in_passage.size(); i++) {
+            if (in_passage[i]) {
+                score += matched[i];
+                end = i;
+                gap = 0;
+            }
+            else if (++gap > 1) {
+                break;
+            }
+        }
+        if (score > best_score) {
+            best_score = score;
+            best_begin = begin;
+            best_end = end;
+        }
+    }
+
+    if (best_begin < 0 || best_score < 3 || best_end >= line_rects.size()) {
+        // the text wasn't found on the page (e.g. a scan without text): the closest line gets the visual mark
+        focus_text(page, text);
+        return;
+    }
+
+    std::vector<AbsoluteRect> highlights(line_rects.begin() + best_begin, line_rects.begin() + best_end + 1);
+    opengl_widget->set_passage_highlights(highlights);
+    main_document_view->set_offset_y((highlights.front().y0 + highlights.back().y1) / 2);
+    invalidate_render();
+}
+
 int MainWidget::get_current_monitor_width() {
     if (this->window()->windowHandle() != nullptr) {
         return this->window()->windowHandle()->screen()->geometry().width();
