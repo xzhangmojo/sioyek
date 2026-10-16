@@ -2202,10 +2202,19 @@ void MainWidget::open_document_at_location(const Path& path_,
         if (x_loc) {
             main_document_view->set_offset_x(absolute_pos.x);
         }
-        main_document_view->set_offset_y(absolute_pos.y);
 
         if (zoom_level) {
             main_document_view->set_zoom_level(zoom_level.value(), true);
+        }
+
+        if (y_loc) {
+            main_document_view->set_offset_y(absolute_pos.y);
+        }
+        else {
+            // the page's top at the top of the window (the offset is the window's middle, so setting it to the
+            // page's top showed the page from the middle of the window); again once the real page sizes are known
+            main_document_view->goto_page(page);
+            goto_page_when_loaded(page, main_document_view->get_offsets().y);
         }
     }
 
@@ -2214,6 +2223,23 @@ void MainWidget::open_document_at_location(const Path& path_,
     last_smart_fit_page = {};
     opengl_widget->on_document_view_reset();
     show_password_prompt_if_required();
+}
+
+// a document which was just opened has estimated page sizes for a moment: when the real ones arrive, the page is
+// shown from its top again (unless the view was moved meanwhile)
+void MainWidget::goto_page_when_loaded(int page, float expected_offset, int attempt) {
+    if (doc() == nullptr || attempt > 100) return;
+    if (!doc()->are_page_dimensions_loaded()) {
+        Document* document = doc();
+        QTimer::singleShot(50, this, [this, document, page, expected_offset, attempt]() {
+            if (doc() == document) goto_page_when_loaded(page, expected_offset, attempt + 1);
+        });
+        return;
+    }
+    if (std::abs(main_document_view->get_offsets().y - expected_offset) < 1.0f) {
+        main_document_view->goto_page(page);
+        invalidate_render();
+    }
 }
 
 void MainWidget::open_document(const DocumentViewState& state)

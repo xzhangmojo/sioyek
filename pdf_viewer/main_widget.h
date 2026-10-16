@@ -564,6 +564,7 @@ public:
     void move_document_screens(int num_screens);
     void focus_text(int page, const std::wstring& text);
     void focus_passage(int page, const std::wstring& text, int attempt = 0);
+    void goto_page_when_loaded(int page, float expected_offset, int attempt = 0);
     int get_page_intersecting_rect_index(DocumentRect rect);
     std::optional<AbsoluteRect> get_page_intersecting_rect(DocumentRect rect);
     void focus_rect(DocumentRect rect);
