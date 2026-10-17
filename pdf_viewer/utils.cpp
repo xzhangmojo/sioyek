@@ -1969,6 +1969,8 @@ QCommandLineParser* get_command_line_parser() {
 
     QCommandLineOption focus_passage_page_option("focus-passage-page", "The page (starting from 0) of focus-passage", "focus-passage-page");
     parser->addOption(focus_passage_page_option);
+    QCommandLineOption focus_passage_fraction_option("focus-passage-fraction", "How far into the document focus-passage is (0 to 1), for documents whose pages depend on the layout (epub): the pages around it are searched", "focus-passage-fraction");
+    parser->addOption(focus_passage_fraction_option);
 
 
     QCommandLineOption inverse_search_option("inverse-search", "The command to execute when performing inverse search.\

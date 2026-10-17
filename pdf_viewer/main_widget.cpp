@@ -5285,28 +5285,18 @@ static std::vector<std::wstring> passage_words(const std::wstring& text) {
     return words;
 }
 
-// marks the lines of `page` which contain `text` (e.g. the passage a search found) and scrolls to them, without
-// changing the document; escape removes the mark
-void MainWidget::focus_passage(int page, const std::wstring& text, int attempt) {
-    if (doc() == nullptr || page < 0 || page >= doc()->num_pages()) {
-        return;
-    }
-    // a document which was just opened has estimated page sizes for a moment; positions computed with them are off
-    // once the real sizes are loaded, so this waits for them (for up to 5 seconds)
-    if (!doc()->are_page_dimensions_loaded() && attempt < 100) {
-        Document* document = doc();
-        QTimer::singleShot(50, this, [this, document, page, text, attempt]() {
-            if (doc() == document) focus_passage(page, text, attempt + 1);
-        });
-        return;
-    }
+// the run of lines of `page` which contains the most of the passage's words; begin is -1 when there is none
+struct PassageMatch {
+    int begin = -1, end = -1, score = 0;
+    std::vector<AbsoluteRect> rects;
+};
 
+static PassageMatch match_passage(Document* doc, int page, const std::set<std::wstring>& wanted) {
     // asking for the lines' character rects computes the lines again instead of using ones cached with estimated sizes
     std::vector<std::wstring> line_texts;
     std::vector<std::vector<PagelessDocumentRect>> line_char_rects;
-    std::vector<AbsoluteRect> line_rects = doc()->get_page_lines(page, &line_texts, &line_char_rects);
-    std::vector<std::wstring> wanted_list = passage_words(text);
-    std::set<std::wstring> wanted(wanted_list.begin(), wanted_list.end());
+    PassageMatch match;
+    match.rects = doc->get_page_lines(page, &line_texts, &line_char_rects);
 
     // a line is part of the passage when (nearly) all of its words are in it
     std::vector<int> matched(line_texts.size(), 0);
@@ -5322,7 +5312,6 @@ void MainWidget::focus_passage(int page, const std::wstring& text, int attempt) 
     }
 
     // the run of such lines with the most matching words (a line in between which doesn't match is allowed)
-    int best_begin = -1, best_end = -1, best_score = 0;
     for (int begin = 0; begin < in_passage.size(); begin++) {
         if (!in_passage[begin]) continue;
         int score = 0, end = begin, gap = 0;
@@ -5336,20 +5325,64 @@ void MainWidget::focus_passage(int page, const std::wstring& text, int attempt) 
                 break;
             }
         }
-        if (score > best_score) {
-            best_score = score;
-            best_begin = begin;
-            best_end = end;
+        if (score > match.score) {
+            match.score = score;
+            match.begin = begin;
+            match.end = end;
+        }
+    }
+    if (match.end >= (int)match.rects.size()) match.begin = -1;
+    return match;
+}
+
+// marks the lines of `page` which contain `text` (e.g. the passage a search found) and scrolls to them, without
+// changing the document; escape removes the mark. With `fraction` (how far into the document the passage is, for
+// documents without fixed pages like epub, whose pages depend on the layout) the pages around that point are searched.
+void MainWidget::focus_passage(int page, const std::wstring& text, int attempt, float fraction) {
+    if (doc() == nullptr || (fraction < 0 && (page < 0 || page >= doc()->num_pages()))) {
+        return;
+    }
+    // a document which was just opened has estimated page sizes for a moment; positions computed with them are off
+    // once the real sizes are loaded, so this waits for them (for up to 5 seconds)
+    if (!doc()->are_page_dimensions_loaded() && attempt < 100) {
+        Document* document = doc();
+        QTimer::singleShot(50, this, [this, document, page, text, attempt, fraction]() {
+            if (doc() == document) focus_passage(page, text, attempt + 1, fraction);
+        });
+        return;
+    }
+    int pages = doc()->num_pages();
+    if (pages <= 0) return;
+    int radius = 0;
+    if (fraction >= 0) {
+        page = std::max(0, std::min(pages - 1, (int)(fraction * pages)));
+        radius = 40;
+    }
+
+    std::vector<std::wstring> wanted_list = passage_words(text);
+    std::set<std::wstring> wanted(wanted_list.begin(), wanted_list.end());
+    // the estimated page first, then the pages around it, nearest first, until a good match is found
+    int good = std::max(8, (int)(0.5f * wanted.size()));
+    PassageMatch best = match_passage(doc(), page, wanted);
+    int best_page = page;
+    for (int distance = 1; distance <= radius && best.score < good; distance++) {
+        for (int candidate : {page + distance, page - distance}) {
+            if (candidate < 0 || candidate >= pages) continue;
+            PassageMatch match = match_passage(doc(), candidate, wanted);
+            if (match.score > best.score) {
+                best = match;
+                best_page = candidate;
+            }
         }
     }
 
-    if (best_begin < 0 || best_score < 3 || best_end >= line_rects.size()) {
-        // the text wasn't found on the page (e.g. a scan without text): the closest line gets the visual mark
+    if (best.begin < 0 || best.score < 3) {
+        // the text wasn't found (e.g. a scan without text): the closest line gets the visual mark
         focus_text(page, text);
         return;
     }
 
-    std::vector<AbsoluteRect> highlights(line_rects.begin() + best_begin, line_rects.begin() + best_end + 1);
+    std::vector<AbsoluteRect> highlights(best.rects.begin() + best.begin, best.rects.begin() + best.end + 1);
     opengl_widget->set_passage_highlights(highlights);
     main_document_view->set_offset_y((highlights.front().y0 + highlights.back().y1) / 2);
     invalidate_render();

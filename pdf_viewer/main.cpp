@@ -673,7 +673,8 @@ MainWidget* handle_args(const QStringList& arguments, QLocalSocket* origin=nullp
     if (parser->isSet("focus-passage")) {
         QString text = parser->value("focus-passage");
         int page = parser->value("focus-passage-page").toInt();
-        target_window->focus_passage(page, text.toStdWString());
+        float fraction = parser->isSet("focus-passage-fraction") ? parser->value("focus-passage-fraction").toFloat() : -1;
+        target_window->focus_passage(page, text.toStdWString(), 0, fraction);
     }
 
 
