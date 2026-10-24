@@ -2762,7 +2762,7 @@ public:
 class ShowLinkedNotesCommand : public Command {
 public:
     static inline const std::string cname = "show_linked_notes";
-    static inline const std::string hname = "Show SioLibrary notes linking to this document";
+    static inline const std::string hname = "Show notes";
     ShowLinkedNotesCommand(MainWidget* w) : Command(cname, w) {};
 
     void perform() {
@@ -2773,7 +2773,7 @@ public:
 class RevealInSiolibraryCommand : public Command {
 public:
     static inline const std::string cname = "reveal_in_siolibrary";
-    static inline const std::string hname = "Show this document in its SioLibrary group";
+    static inline const std::string hname = "Show in SioLibrary";
     RevealInSiolibraryCommand(MainWidget* w) : Command(cname, w) {};
 
     void perform() {
@@ -2784,7 +2784,7 @@ public:
 class NewNoteFromHighlightCommand : public Command {
 public:
     static inline const std::string cname = "new_note_from_highlight";
-    static inline const std::string hname = "New SioLibrary note from the selected highlight";
+    static inline const std::string hname = "New note from highlight";
     NewNoteFromHighlightCommand(MainWidget* w) : Command(cname, w) {};
 
     void perform() {
@@ -2800,7 +2800,7 @@ public:
 class AddHighlightAndNewNoteCommand : public SymbolCommand {
 public:
     static inline const std::string cname = "add_highlight_and_new_note";
-    static inline const std::string hname = "Highlight and make a SioLibrary note from it";
+    static inline const std::string hname = "Highlight and new note";
     AddHighlightAndNewNoteCommand(MainWidget* w) : SymbolCommand(cname, w) {};
 
     void perform() {
@@ -5490,7 +5490,7 @@ public:
 class VisualMarkUnderCursorCommand : public Command {
 public:
     static inline const std::string cname = "visual_mark_under_cursor";
-    static inline const std::string hname = "Highlight the line under cursor";
+    static inline const std::string hname = "Ruler";
     VisualMarkUnderCursorCommand(MainWidget* w) : Command(cname, w) {};
 
     void perform() {
