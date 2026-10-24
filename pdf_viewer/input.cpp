@@ -2770,6 +2770,17 @@ public:
     }
 };
 
+class HighlightsToNoteCommand : public Command {
+public:
+    static inline const std::string cname = "highlights_to_note";
+    static inline const std::string hname = "Highlights to note";
+    HighlightsToNoteCommand(MainWidget* w) : Command(cname, w) {};
+
+    void perform() {
+        widget->highlights_to_note();
+    }
+};
+
 class RevealInSiolibraryCommand : public Command {
 public:
     static inline const std::string cname = "reveal_in_siolibrary";
@@ -7465,6 +7476,7 @@ CommandManager::CommandManager(ConfigManager* config_manager) {
     register_command<CopyLinkToHighlightCommand>();
     register_command<ShowLinkedNotesCommand>();
     register_command<RevealInSiolibraryCommand>();
+    register_command<HighlightsToNoteCommand>();
     register_command<NewNoteFromHighlightCommand>();
     register_command<AddHighlightAndNewNoteCommand>();
     register_command<AiExplainCommand>();

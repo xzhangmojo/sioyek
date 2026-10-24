@@ -6426,6 +6426,14 @@ void MainWidget::show_linked_notes() {
         });
 }
 
+void MainWidget::highlights_to_note() {
+    if (!doc()) return;
+
+    run_siolib({ "highlights-note", QString::fromStdWString(doc()->get_path()), "--open" }, [this](const QByteArray& output) {
+        set_status_message(("SioLibrary: " + QString::fromUtf8(output).trimmed()).toStdWString());
+        });
+}
+
 void MainWidget::reveal_in_siolibrary() {
     if (!doc()) return;
 
