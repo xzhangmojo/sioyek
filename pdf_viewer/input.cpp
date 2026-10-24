@@ -2759,6 +2759,60 @@ public:
     AiChatCommand(MainWidget* w) : AskAiCommand(cname, w, "chat") {};
 };
 
+class ShowLinkedNotesCommand : public Command {
+public:
+    static inline const std::string cname = "show_linked_notes";
+    static inline const std::string hname = "Show SioLibrary notes linking to this document";
+    ShowLinkedNotesCommand(MainWidget* w) : Command(cname, w) {};
+
+    void perform() {
+        widget->show_linked_notes();
+    }
+};
+
+class RevealInSiolibraryCommand : public Command {
+public:
+    static inline const std::string cname = "reveal_in_siolibrary";
+    static inline const std::string hname = "Show this document in its SioLibrary group";
+    RevealInSiolibraryCommand(MainWidget* w) : Command(cname, w) {};
+
+    void perform() {
+        widget->reveal_in_siolibrary();
+    }
+};
+
+class NewNoteFromHighlightCommand : public Command {
+public:
+    static inline const std::string cname = "new_note_from_highlight";
+    static inline const std::string hname = "New SioLibrary note from the selected highlight";
+    NewNoteFromHighlightCommand(MainWidget* w) : Command(cname, w) {};
+
+    void perform() {
+        if (widget->selected_highlight_index != -1) {
+            widget->new_note_from_highlight(widget->doc()->get_highlight_index_uuid(widget->selected_highlight_index));
+        }
+        else {
+            show_error_message(L"No highlight is selected (add_highlight_and_new_note highlights the selected text first)");
+        }
+    }
+};
+
+class AddHighlightAndNewNoteCommand : public SymbolCommand {
+public:
+    static inline const std::string cname = "add_highlight_and_new_note";
+    static inline const std::string hname = "Highlight and make a SioLibrary note from it";
+    AddHighlightAndNewNoteCommand(MainWidget* w) : SymbolCommand(cname, w) {};
+
+    void perform() {
+        if (widget->main_document_view->selected_character_rects.size() > 0) {
+            widget->new_note_from_highlight(utf8_encode(widget->handle_add_highlight(symbol)));
+        }
+        else if (widget->selected_highlight_index != -1) {
+            widget->new_note_from_highlight(widget->doc()->get_highlight_index_uuid(widget->selected_highlight_index));
+        }
+    }
+};
+
 class CommandPaletteCommand : public Command {
 public:
     static inline const std::string cname = "command_palette";
@@ -7409,6 +7463,10 @@ CommandManager::CommandManager(ConfigManager* config_manager) {
     register_command<CopyCommand>();
     register_command<AddHighlightAndCopyLinkCommand>();
     register_command<CopyLinkToHighlightCommand>();
+    register_command<ShowLinkedNotesCommand>();
+    register_command<RevealInSiolibraryCommand>();
+    register_command<NewNoteFromHighlightCommand>();
+    register_command<AddHighlightAndNewNoteCommand>();
     register_command<AiExplainCommand>();
     register_command<AiTranslateCommand>();
     register_command<AiSummarizeCommand>();

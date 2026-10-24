@@ -74,6 +74,8 @@ std::wstring PAPER_SEARCH_URL = L"https://search.fatcat.wiki/fatcat_release/_sea
 std::wstring PAPER_SEARCH_URL_PATH = L"hits.hits[]._source.best_pdf_url";
 // the program that `ai_*` commands launch, see scripts/sioyek-ai
 std::wstring AI_POPUP_COMMAND = L"~/.config/sioyek/bin/sioyek-ai";
+// SioLibrary's command line program, which show_linked_notes and new_note_from_highlight use
+std::wstring SIOLIB_COMMAND = L"~/.local/bin/siolib";
 std::wstring PAPER_SEARCH_TILE_PATH = L"hits.hits[]._source.title";
 std::wstring PAPER_SEARCH_CONTRIB_PATH = L"hits.hits[]._source.contrib_names";
 
@@ -1074,6 +1076,7 @@ ConfigManager::ConfigManager(const Path& default_path, const Path& auto_path, co
     add_string(L"text_summary_url", &TEXT_HIGHLIGHT_URL);
     add_string(L"paper_search_url", &PAPER_SEARCH_URL);
     add_string(L"ai_popup_command", &AI_POPUP_COMMAND);
+    add_string(L"siolib_command", &SIOLIB_COMMAND);
     add_string(L"papers_folder_path", &PAPERS_FOLDER_PATH);
     add_string(L"library_folders", &LIBRARY_FOLDERS);
     add_string(L"scan_path", &BOOK_SCAN_PATH);

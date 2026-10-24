@@ -664,6 +664,16 @@ public:
     std::wstring handle_add_highlight(char symbol);
     // copies a sioyek://highlight link to the highlight with `uuid` in the current document
     void copy_link_to_highlight(const std::string& uuid);
+    // the sioyek://highlight link to the highlight with `uuid` in the current document (empty if there is none)
+    QString highlight_link(const std::string& uuid);
+    // SioLibrary's notes which link to the current document, in a list (opened in SioLibrary when chosen)
+    void show_linked_notes();
+    // SioLibrary's window with the current document selected in its group
+    void reveal_in_siolibrary();
+    // a new SioLibrary note about the highlight with `uuid`, opened in SioLibrary's editor
+    void new_note_from_highlight(const std::string& uuid);
+    // runs SioLibrary's command line program (SIOLIB_COMMAND) and calls `done` with its output when it succeeds
+    void run_siolib(const QStringList& arguments, std::function<void(const QByteArray&)> done);
     // opens the document of a sioyek://highlight link and jumps to the linked highlight
     void open_highlight_link(const QUrl& url);
     // the document a sioyek://highlight link points to

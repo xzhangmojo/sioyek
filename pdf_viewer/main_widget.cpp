@@ -124,6 +124,7 @@ extern std::wstring LIBGEN_ADDRESS;
 extern std::wstring INVERSE_SEARCH_COMMAND;
 extern std::wstring PAPER_SEARCH_URL;
 extern std::wstring AI_POPUP_COMMAND;
+extern std::wstring SIOLIB_COMMAND;
 extern std::wstring PAPER_SEARCH_URL_PATH;
 extern std::wstring PAPER_SEARCH_TILE_PATH;
 extern std::wstring PAPER_SEARCH_CONTRIB_PATH;
@@ -6314,10 +6315,21 @@ std::wstring MainWidget::handle_add_highlight(char symbol) {
 }
 
 void MainWidget::copy_link_to_highlight(const std::string& uuid) {
-    int index = doc()->get_highlight_index_with_uuid(uuid);
-    if (index == -1) {
+    QString link = highlight_link(uuid);
+    if (link.isEmpty()) {
         show_error_message(L"No highlight is selected");
         return;
+    }
+
+    Highlight highlight = main_document_view->get_highlight_with_index(doc()->get_highlight_index_with_uuid(uuid));
+    copy_link_to_clipboard(highlight.description, link);
+    set_status_message(L"Copied link to highlight");
+}
+
+QString MainWidget::highlight_link(const std::string& uuid) {
+    int index = doc() ? doc()->get_highlight_index_with_uuid(uuid) : -1;
+    if (index == -1) {
+        return "";
     }
 
     Highlight highlight = main_document_view->get_highlight_with_index(index);
@@ -6336,9 +6348,101 @@ void MainWidget::copy_link_to_highlight(const std::string& uuid) {
     url.setScheme("sioyek");
     url.setHost("highlight");
     url.setQuery(query);
+    return url.toString(QUrl::FullyEncoded);
+}
 
-    copy_link_to_clipboard(highlight.description, url.toString(QUrl::FullyEncoded));
-    set_status_message(L"Copied link to highlight");
+void MainWidget::run_siolib(const QStringList& arguments, std::function<void(const QByteArray&)> done) {
+    QString program = QString::fromStdWString(SIOLIB_COMMAND);
+    if (program.startsWith("~/")) {
+        program = QDir::homePath() + program.mid(1);
+    }
+    QProcess* process = new QProcess(this);
+    QObject::connect(process, &QProcess::errorOccurred, [process, program](QProcess::ProcessError error) {
+        if (error == QProcess::FailedToStart) {
+            show_error_message(("Could not run SioLibrary's siolib (" + program + "), see siolib_command in prefs.config").toStdWString());
+            process->deleteLater();
+        }
+        });
+    QObject::connect(process, qOverload<int, QProcess::ExitStatus>(&QProcess::finished), [process, done](int code, QProcess::ExitStatus status) {
+        if (status == QProcess::NormalExit && code == 0) {
+            done(process->readAllStandardOutput());
+        }
+        else {
+            // siolib explains what went wrong (e.g. that the file isn't in the library)
+            QString error = QString::fromUtf8(process->readAllStandardError()).trimmed();
+            show_error_message(("SioLibrary: " + (error.isEmpty() ? QString("siolib failed") : error)).toStdWString());
+        }
+        process->deleteLater();
+        });
+    process->start(program, arguments);
+    // it doesn't wait for input
+    process->closeWriteChannel();
+}
+
+void MainWidget::show_linked_notes() {
+    if (!doc()) return;
+
+    run_siolib({ "links", QString::fromStdWString(doc()->get_path()), "--json" }, [this](const QByteArray& output) {
+        QJsonArray notes = QJsonDocument::fromJson(output).object()["notes"].toArray();
+        if (notes.isEmpty()) {
+            set_status_message(L"No notes in SioLibrary link to this document");
+            return;
+        }
+
+        std::vector<std::wstring> names;
+        std::vector<std::wstring> details;
+        std::vector<std::wstring> paths;
+        for (const QJsonValue& value : notes) {
+            QJsonObject note = value.toObject();
+            // where in this document the note links to: pages and highlights
+            QStringList parts;
+            QStringList pages;
+            for (const QJsonValue& page : note["pages"].toArray()) {
+                pages.append(QString::number(page.toInt()));
+            }
+            if (!pages.isEmpty()) {
+                parts.append((pages.size() == 1 ? "p. " : "pp. ") + pages.join(", "));
+            }
+            int highlights = note["highlights"].toArray().size();
+            if (highlights > 0) {
+                parts.append(QString::number(highlights) + (highlights == 1 ? " highlight" : " highlights"));
+            }
+            names.push_back(note["name"].toString().toStdWString());
+            details.push_back(parts.join(" · ").toStdWString());
+            paths.push_back(note["path"].toString().toStdWString());
+        }
+
+        set_filtered_select_menu<std::wstring>(this, FUZZY_SEARCHING, MULTILINE_MENUS, { names, details }, paths, -1,
+            [](std::wstring* path) {
+                QProcess::startDetached("/usr/bin/open", { "-a", "SioLibrary", QString::fromStdWString(*path) });
+            },
+            nullptr);
+        show_current_widget();
+        });
+}
+
+void MainWidget::reveal_in_siolibrary() {
+    if (!doc()) return;
+
+    run_siolib({ "reveal", QString::fromStdWString(doc()->get_path()) }, [this](const QByteArray& output) {
+        // e.g. "shown in Papers/Virtualization"
+        set_status_message(("SioLibrary: " + QString::fromUtf8(output).trimmed()).toStdWString());
+        });
+}
+
+void MainWidget::new_note_from_highlight(const std::string& uuid) {
+    QString link = highlight_link(uuid);
+    if (link.isEmpty()) {
+        show_error_message(L"No highlight is selected");
+        return;
+    }
+
+    Highlight highlight = main_document_view->get_highlight_with_index(doc()->get_highlight_index_with_uuid(uuid));
+    QStringList arguments = { "note", "new", "--about", QString::fromStdWString(doc()->get_path()), "--highlight", link,
+        "--quote", QString::fromStdWString(highlight.description), "--open" };
+    run_siolib(arguments, [this](const QByteArray&) {
+        set_status_message(L"Made a note in SioLibrary");
+        });
 }
 
 std::optional<DocumentIdentity> MainWidget::get_highlight_link_identity(const QUrl& url) {
