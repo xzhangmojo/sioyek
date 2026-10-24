@@ -6426,6 +6426,14 @@ void MainWidget::show_linked_notes() {
         });
 }
 
+void MainWidget::add_to_reading_list() {
+    if (!doc()) return;
+
+    run_siolib({ "reading-list", "add", QString::fromStdWString(doc()->get_path()) }, [this](const QByteArray&) {
+        set_status_message(L"On the Reading List in SioLibrary");
+        });
+}
+
 void MainWidget::highlights_to_note() {
     if (!doc()) return;
 

@@ -672,6 +672,8 @@ public:
     void reveal_in_siolibrary();
     // a SioLibrary note with the current document's highlights (the new ones added when it's there), opened
     void highlights_to_note();
+    // the current document onto SioLibrary's reading list
+    void add_to_reading_list();
     // a new SioLibrary note about the highlight with `uuid`, opened in SioLibrary's editor
     void new_note_from_highlight(const std::string& uuid);
     // runs SioLibrary's command line program (SIOLIB_COMMAND) and calls `done` with its output when it succeeds

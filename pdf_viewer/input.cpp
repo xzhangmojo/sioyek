@@ -2770,6 +2770,17 @@ public:
     }
 };
 
+class AddToReadingListCommand : public Command {
+public:
+    static inline const std::string cname = "add_to_reading_list";
+    static inline const std::string hname = "Add to reading list";
+    AddToReadingListCommand(MainWidget* w) : Command(cname, w) {};
+
+    void perform() {
+        widget->add_to_reading_list();
+    }
+};
+
 class HighlightsToNoteCommand : public Command {
 public:
     static inline const std::string cname = "highlights_to_note";
@@ -7477,6 +7488,7 @@ CommandManager::CommandManager(ConfigManager* config_manager) {
     register_command<ShowLinkedNotesCommand>();
     register_command<RevealInSiolibraryCommand>();
     register_command<HighlightsToNoteCommand>();
+    register_command<AddToReadingListCommand>();
     register_command<NewNoteFromHighlightCommand>();
     register_command<AddHighlightAndNewNoteCommand>();
     register_command<AiExplainCommand>();
