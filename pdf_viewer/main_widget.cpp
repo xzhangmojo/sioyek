@@ -1331,7 +1331,8 @@ MainWidget::MainWidget(fz_context* mupdf_context,
     scroll_bar->setMaximum(MAX_SCROLLBAR);
 
     scroll_bar->connect(scroll_bar, &QScrollBar::actionTriggered, [this](int action) {
-        int value = scroll_bar->value();
+        // while the signal is sent, value() is still the old position (dragging lagged a step behind)
+        int value = scroll_bar->sliderPosition();
         if (main_document_view_has_document()) {
             float offset = doc()->max_y_offset() * value / static_cast<float>(scroll_bar->maximum());
             main_document_view->set_offset_y(offset);
@@ -1871,6 +1872,10 @@ void MainWidget::validate_render() {
         }
     }
     validate_ui();
+    // the scrollbar follows every move (links, search results, ...), not only keys and the wheel
+    if (scroll_bar->isVisible() && !scroll_bar->isSliderDown()) {
+        update_scrollbar();
+    }
     update();
     if (opengl_widget != nullptr) {
         opengl_widget->update();
@@ -7944,6 +7949,14 @@ void MainWidget::show_context_menu(QString menu_string) {
     // call below is necessary to ensure that changes due to showing the context menu
     // (e.g. the right clicked highlight being selected) are displayed
     validate_render();
+
+    // show_context_menu without a menu: the one of context_menu_items
+    if (menu_string.isEmpty()) {
+        menu_string = QString::fromStdWString(CONTEXT_MENU_ITEMS);
+    }
+    if (menu_string.isEmpty()) {
+        return;
+    }
 
     auto menu = parse_menu_string(this, "menu", menu_string);
     show_recursive_context_menu(std::move(menu));
