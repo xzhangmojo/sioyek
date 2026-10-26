@@ -425,9 +425,13 @@ final class ChatController: NSObject, NSWindowDelegate {
     let sensitiveLabel = NSTextField(wrappingLabelWithString: "")
     let sendAnywayButton = NSButton(title: "Send to Claude anyway", target: nil, action: nil)
 
-    // SioLibrary's marker for sensitive files (stored with the file, like a finder tag)
+    // SioLibrary's marker for sensitive files (stored with the file, like a finder tag): `#S` makes iCloud sync it,
+    // files marked before that have it without
     var isMarkedSensitive: Bool {
-        getxattr(documentPath, "local.siolibrary.sensitive", nil, 0, 0, 0) >= 0
+        for name in ["local.siolibrary.sensitive#S", "local.siolibrary.sensitive"] where getxattr(documentPath, name, nil, 0, 0, 0) >= 0 {
+            return true
+        }
+        return false
     }
     var isBlocked: Bool { isMarkedSensitive && history.allowSensitive != true }
     let inputField = NSTextField()
